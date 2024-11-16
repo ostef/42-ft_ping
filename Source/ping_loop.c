@@ -1,6 +1,6 @@
 #include "ft_ping.h"
 
-static bool g_stop_ping_loop = false;
+bool g_stop_ping_loop = false;
 
 void IntHandler (int)
 {
@@ -27,8 +27,13 @@ void PingPong (Context *ctx)
         clock_gettime (CLOCK_MONOTONIC, &start_time);
 
         SendICMPEchoPacket (ctx);
+        if (g_stop_ping_loop)
+            break;
 
         int received = ReceiveICMPPacket (ctx, readback_buffer, sizeof (readback_buffer));
+        if (g_stop_ping_loop)
+            break;
+
         if (received > 0)
         {
             struct timespec end_time = {0};

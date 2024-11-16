@@ -38,20 +38,31 @@ int SendICMPEchoPacket (Context *ctx)
 
     packet.header.checksum = CalculateIPv4Checksum (&packet, sizeof (packet));
 
-    int sent = sendto (
-        ctx->socket_fd,
-        &packet, sizeof (packet),
-        0,
-        (struct sockaddr *)&ctx->dest_addr, sizeof (ctx->dest_addr)
-    );
-
-    if (sent < 0)
-        FatalErrorErrno ("sendto", errno);
-
-    if (sent == 0)
+    int sent = 0;
+    while (!g_stop_ping_loop)
     {
-        fprintf (stderr, "Socket closed\n");
-        exit (1);
+        sent = sendto (
+            ctx->socket_fd,
+            &packet, sizeof (packet),
+            MSG_DONTWAIT,
+            (struct sockaddr *)&ctx->dest_addr, sizeof (ctx->dest_addr)
+        );
+
+        if (sent < 0)
+        {
+            if (errno == EWOULDBLOCK || errno == EAGAIN)
+                continue;
+            else
+                FatalErrorErrno ("sendto", errno);
+        }
+
+        if (sent == 0)
+        {
+            fprintf (stderr, "Socket closed\n");
+            exit (1);
+        }
+
+        break;
     }
 
     return sent;
@@ -60,18 +71,23 @@ int SendICMPEchoPacket (Context *ctx)
 int ReceiveICMPPacket (Context *ctx, void *buff, int size)
 {
     int received = 0;
-    while (true)
+    while (!g_stop_ping_loop)
     {
         socklen_t addrlen = sizeof (ctx->dest_addr);
         received = recvfrom (
             ctx->socket_fd,
             buff, size,
-            0,
+            MSG_DONTWAIT,
             (struct sockaddr *)&ctx->dest_addr, &addrlen
         );
 
         if (received < 0)
-            FatalErrorErrno ("recvfrom", errno);
+        {
+            if (errno == EWOULDBLOCK || errno == EAGAIN)
+                continue;
+            else
+                FatalErrorErrno ("recvfrom", errno);
+        }
 
         if (received == 0)
         {
@@ -89,6 +105,9 @@ int ReceiveICMPPacket (Context *ctx, void *buff, int size)
             break;
         }
     }
+
+    if (g_stop_ping_loop)
+        return 0;
 
     struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof (struct iphdr));
     if (hdr->type == ICMP_ECHOREPLY && hdr->un.echo.sequence == ctx->echo_sent)

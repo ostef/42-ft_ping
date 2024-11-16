@@ -35,6 +35,8 @@ typedef struct
 #define Ping_Packet_Size 64
 #define Random_Packet_Loss_Chance 0.0
 
+extern bool g_stop_ping_loop;
+
 typedef struct __attribute ((packed))
 {
     struct icmphdr header;
