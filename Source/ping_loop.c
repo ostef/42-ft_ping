@@ -15,7 +15,7 @@ void PingPong(Context *ctx)
     clock_gettime(CLOCK_MONOTONIC, &total_start_time);
 
     printf(
-        "PING %s(%s) %d(%d) bytes of data\n",
+        "PING %s (%s) %d(%d) bytes of data\n",
         "localhost", "127.0.0.1",
         (int)(sizeof(PingPacket) - sizeof(struct icmphdr)),
         (int)(sizeof(PingPacket) + sizeof(struct iphdr))
