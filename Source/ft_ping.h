@@ -37,20 +37,20 @@ typedef struct
 
 extern bool g_stop_ping_loop;
 
-typedef struct __attribute ((packed))
+typedef struct __attribute((packed))
 {
     struct icmphdr header;
-    char msg[Ping_Packet_Size - sizeof (struct icmphdr)];
+    char msg[Ping_Packet_Size - sizeof(struct icmphdr)];
 } PingPacket;
 
-void FatalError (const char *message, ...);
-void FatalErrorErrno (const char *message, int err);
-void FatalErrorEAI (const char *message, int err);
+void FatalError(const char *message, ...);
+void FatalErrorErrno(const char *message, int err);
+void FatalErrorEAI(const char *message, int err);
 
-int SendICMPEchoPacket (Context *ctx);
-int ReceiveICMPPacket (Context *ctx, void *buff, int size);
-void PrintICMPPacket (Context *ctx, void *data, int size, double elapsed_ms);
+int SendICMPEchoPacket(Context *ctx);
+int ReceiveICMPPacket(Context *ctx, void *buff, int size);
+void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms);
 
-void IntHandler (int);
+void IntHandler(int);
 
-void PingPong (Context *ctx);
+void PingPong(Context *ctx);

@@ -1,7 +1,7 @@
 #include "ft_ping.h"
 
 // https://en.wikipedia.org/wiki/Internet_checksum
-static unsigned short CalculateIPv4Checksum (void *ptr, int size)
+static unsigned short CalculateIPv4Checksum(void *ptr, int size)
 {
     unsigned short *buf = ptr;
     unsigned int sum = 0;
@@ -22,30 +22,30 @@ static unsigned short CalculateIPv4Checksum (void *ptr, int size)
     return ~sum;
 }
 
-int SendICMPEchoPacket (Context *ctx)
+int SendICMPEchoPacket(Context *ctx)
 {
     ctx->echo_sent += 1;
 
     PingPacket packet = {0};
     packet.header.type = ICMP_ECHO;
-    packet.header.un.echo.id = getpid ();
+    packet.header.un.echo.id = getpid();
     packet.header.un.echo.sequence = ctx->echo_sent;
 
-    for (int i = 0; i < sizeof (packet.msg) - 1; i += 1)
+    for (int i = 0; i < sizeof(packet.msg) - 1; i += 1)
         packet.msg[i] = '0' + i;
 
-    packet.msg[sizeof (packet.msg) - 1] = 0;
+    packet.msg[sizeof(packet.msg) - 1] = 0;
 
-    packet.header.checksum = CalculateIPv4Checksum (&packet, sizeof (packet));
+    packet.header.checksum = CalculateIPv4Checksum(&packet, sizeof(packet));
 
     int sent = 0;
     while (!g_stop_ping_loop)
     {
-        sent = sendto (
+        sent = sendto(
             ctx->socket_fd,
-            &packet, sizeof (packet),
+            &packet, sizeof(packet),
             MSG_DONTWAIT,
-            (struct sockaddr *)&ctx->dest_addr, sizeof (ctx->dest_addr)
+            (struct sockaddr *)&ctx->dest_addr, sizeof(ctx->dest_addr)
         );
 
         if (sent < 0)
@@ -53,13 +53,13 @@ int SendICMPEchoPacket (Context *ctx)
             if (errno == EWOULDBLOCK || errno == EAGAIN)
                 continue;
             else
-                FatalErrorErrno ("sendto", errno);
+                FatalErrorErrno("sendto", errno);
         }
 
         if (sent == 0)
         {
-            fprintf (stderr, "Socket closed\n");
-            exit (1);
+            fprintf(stderr, "Socket closed\n");
+            exit(1);
         }
 
         break;
@@ -68,13 +68,13 @@ int SendICMPEchoPacket (Context *ctx)
     return sent;
 }
 
-int ReceiveICMPPacket (Context *ctx, void *buff, int size)
+int ReceiveICMPPacket(Context *ctx, void *buff, int size)
 {
     int received = 0;
     while (!g_stop_ping_loop)
     {
-        socklen_t addrlen = sizeof (ctx->dest_addr);
-        received = recvfrom (
+        socklen_t addrlen = sizeof(ctx->dest_addr);
+        received = recvfrom(
             ctx->socket_fd,
             buff, size,
             MSG_DONTWAIT,
@@ -86,20 +86,20 @@ int ReceiveICMPPacket (Context *ctx, void *buff, int size)
             if (errno == EWOULDBLOCK || errno == EAGAIN)
                 continue;
             else
-                FatalErrorErrno ("recvfrom", errno);
+                FatalErrorErrno("recvfrom", errno);
         }
 
         if (received == 0)
         {
-            fprintf (stderr, "Socket closed\n");
-            exit (1);
+            fprintf(stderr, "Socket closed\n");
+            exit(1);
         }
 
-        struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof (struct iphdr));
+        struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof(struct iphdr));
         if (hdr->type != ICMP_ECHO)
         {
             // Simulate packet loss
-            if (rand () < RAND_MAX * Random_Packet_Loss_Chance)
+            if (rand() < RAND_MAX * Random_Packet_Loss_Chance)
                 return 0;
 
             break;
@@ -109,7 +109,7 @@ int ReceiveICMPPacket (Context *ctx, void *buff, int size)
     if (g_stop_ping_loop)
         return 0;
 
-    struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof (struct iphdr));
+    struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof(struct iphdr));
     if (hdr->type == ICMP_ECHOREPLY && hdr->un.echo.sequence == ctx->echo_sent)
     {
         ctx->reply_received += 1;
@@ -118,17 +118,17 @@ int ReceiveICMPPacket (Context *ctx, void *buff, int size)
     return received;
 }
 
-void PrintICMPPacket (Context *ctx, void *data, int size, double elapsed_ms)
+void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms)
 {
     struct iphdr *ip_header = (struct iphdr *)data;
-    struct icmphdr *header = (struct icmphdr *)((char *)data + sizeof (struct iphdr));
-    switch (header->type)
+    struct icmphdr *header = (struct icmphdr *)((char *)data + sizeof(struct iphdr));
+    switch(header->type)
     {
     case ICMP_ECHO: break; // Ignore our own echo packets
     case ICMP_ECHOREPLY:
-        printf (
+        printf(
             "%d bytes from %s (%s): icmp_seq=%d ttl=%d time=%.2f ms\n",
-            (int)(size - sizeof (struct iphdr)),
+            (int)(size - sizeof(struct iphdr)),
             "localhost", "127.0.0.1",
             header->un.echo.sequence, ip_header->ttl, elapsed_ms
         );
@@ -137,7 +137,7 @@ void PrintICMPPacket (Context *ctx, void *data, int size, double elapsed_ms)
     case ICMP_TIME_EXCEEDED:
         ctx->error_num += 1;
 
-        fprintf (stderr,
+        fprintf(stderr,
             "From %s: icmp_seq=%d Time to live exceeded\n",
             "127.0.0.1",
             ctx->echo_sent
@@ -147,7 +147,7 @@ void PrintICMPPacket (Context *ctx, void *data, int size, double elapsed_ms)
     case ICMP_DEST_UNREACH:
         ctx->error_num += 1;
 
-        fprintf (stderr,
+        fprintf(stderr,
             "From %s: icmp_seq=%d Destination unreachable\n",
             "127.0.0.1",
             ctx->echo_sent
@@ -157,7 +157,7 @@ void PrintICMPPacket (Context *ctx, void *data, int size, double elapsed_ms)
     case ICMP_SOURCE_QUENCH:
         ctx->error_num += 1;
 
-        fprintf (stderr,
+        fprintf(stderr,
             "From %s: icmp_seq=%d Source quench\n",
             "127.0.0.1",
             ctx->echo_sent
@@ -167,7 +167,7 @@ void PrintICMPPacket (Context *ctx, void *data, int size, double elapsed_ms)
     case ICMP_PARAMETERPROB:
         ctx->error_num += 1;
 
-        fprintf (stderr,
+        fprintf(stderr,
             "From %s: icmp_seq=%d ICMP parameter problem\n",
             "127.0.0.1",
             ctx->echo_sent
@@ -177,7 +177,7 @@ void PrintICMPPacket (Context *ctx, void *data, int size, double elapsed_ms)
     default:
         ctx->error_num += 1;
 
-        fprintf (stderr,
+        fprintf(stderr,
             "From %s: icmp_seq=%d Invalid ICMP packet type (%d)\n",
             "127.0.0.1",
             ctx->echo_sent,
