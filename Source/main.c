@@ -97,7 +97,7 @@ static void InitContext(Context *ctx)
 int main(int argc, char **argv)
 {
     Context ctx = {0};
-    ctx.ttl = 1;
+    ctx.ttl = 64;
     ctx.ping_interval_in_seconds = 1;
 
     signal(SIGINT, IntHandler);
