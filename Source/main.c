@@ -72,8 +72,16 @@ static void InitContext(Context *ctx)
     if (ctx->socket_fd < 0)
         FatalErrorErrno("socket", errno);
 
-    if (setsockopt(ctx->socket_fd, IPPROTO_IP, IP_TTL, &ctx->ttl, sizeof(ctx->ttl)) != 0)
-        FatalErrorErrno("setsockopt", errno);
+    if (setsockopt(ctx->socket_fd, IPPROTO_IP, IP_TTL, &ctx->ttl, sizeof(ctx->ttl)) < 0)
+        FatalErrorErrno("setsockopt(IP_TTL)", errno);
+
+    int reuseaddr = 1;
+    if (setsockopt(ctx->socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(int)) < 0)
+        FatalErrorErrno("setsockopt(SO_REUSEADDR)", errno);
+
+    int reuseport = 1;
+    if (setsockopt(ctx->socket_fd, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(int)) < 0)
+        FatalErrorErrno("setsockopt(SO_REUSEPORT)", errno);
 
     struct addrinfo *dest_addr_info = {0};
 
