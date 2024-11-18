@@ -39,9 +39,17 @@ static void PrintUsage()
 
 static void HandleProgramArguments(Context *ctx, int argc, char **argv)
 {
+    char option = 0;
     for (int i = 1; i < argc; i += 1)
     {
-        if (strcmp(argv[i], "-v") == 0)
+        if (argv[i][0] == '-')
+            option = argv[i][1];
+
+        if (option == 't')
+        {
+            ctx->ttl = atoi(argv[i]);
+        }
+        else if (strcmp(argv[i], "-v") == 0)
         {
             ctx->verbose = true;
         }
