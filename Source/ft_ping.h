@@ -18,8 +18,7 @@
 #include <netinet/ip_icmp.h>
 #include <netdb.h>
 
-typedef struct
-{
+typedef struct {
     char *dest_hostname;
     bool verbose;
     int ttl;
@@ -37,8 +36,7 @@ typedef struct
 
 extern bool g_stop_ping_loop;
 
-typedef struct __attribute((packed))
-{
+typedef struct __attribute((packed)) {
     struct icmphdr header;
     char msg[Ping_Packet_Size - sizeof(struct icmphdr)];
 } PingPacket;

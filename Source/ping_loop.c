@@ -2,13 +2,11 @@
 
 bool g_stop_ping_loop = false;
 
-void IntHandler(int)
-{
+void IntHandler(int) {
     g_stop_ping_loop = true;
 }
 
-void PingPong(Context *ctx)
-{
+void PingPong(Context *ctx) {
     char readback_buffer[128];
 
     struct timespec total_start_time = {0};
@@ -21,21 +19,21 @@ void PingPong(Context *ctx)
         (int)(sizeof(PingPacket) + sizeof(struct iphdr))
     );
 
-    while (!g_stop_ping_loop)
-    {
+    while (!g_stop_ping_loop) {
         struct timespec start_time = {0};
         clock_gettime(CLOCK_MONOTONIC, &start_time);
 
         SendICMPEchoPacket(ctx);
-        if (g_stop_ping_loop)
+        if (g_stop_ping_loop) {
             break;
+        }
 
         int received = ReceiveICMPPacket(ctx, readback_buffer, sizeof(readback_buffer));
-        if (g_stop_ping_loop)
+        if (g_stop_ping_loop) {
             break;
+        }
 
-        if (received > 0)
-        {
+        if (received > 0) {
             struct timespec end_time = {0};
             clock_gettime(CLOCK_MONOTONIC, &end_time);
 
@@ -55,17 +53,14 @@ void PingPong(Context *ctx)
         + (total_end_time.tv_nsec - total_start_time.tv_nsec) / 1000000.0;
 
     printf("\n--- %s ping statistics ---\n", ctx->dest_hostname);
-    if (ctx->error_num == 0)
-    {
+    if (ctx->error_num == 0) {
         printf(
             "%d packets transmitted, %d received, %.2f%% packet loss, time %.2f ms\n",
             ctx->echo_sent, ctx->reply_received,
             100 * (ctx->echo_sent - ctx->reply_received) / (float)(ctx->echo_sent),
             total_elapsed_ms
         );
-    }
-    else
-    {
+    } else {
         printf(
             "%d packets transmitted, %d received, +%d errors, %.2f%% packet loss, time %d ms\n",
             ctx->echo_sent, ctx->reply_received,
