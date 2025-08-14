@@ -52,7 +52,7 @@ void PingPong(Context *ctx) {
     double total_elapsed_ms = (total_end_time.tv_sec - total_start_time.tv_sec) * 1000.0
         + (total_end_time.tv_nsec - total_start_time.tv_nsec) / 1000000.0;
 
-    printf("\n--- %s ping statistics ---\n", ctx->dest_hostname);
+    printf("\n--- %s ping statistics ---\n", ctx->dest_hostname_arg);
     if (ctx->error_num == 0) {
         printf(
             "%d packets transmitted, %d received, %.2f%% packet loss, time %.2f ms\n",
