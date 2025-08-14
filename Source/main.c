@@ -114,6 +114,8 @@ static void InitContext(Context *ctx) {
         freeaddrinfo(dest_addr_info);
         FatalErrorEAI("getnameinfo", res);
     }
+
+    freeaddrinfo(dest_addr_info);
 }
 
 int main(int argc, char **argv) {
