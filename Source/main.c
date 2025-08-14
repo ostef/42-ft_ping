@@ -109,7 +109,7 @@ static void InitContext(Context *ctx) {
     memcpy(&ctx->dest_addr, dest_addr_info->ai_addr, sizeof(ctx->dest_addr));
 
     // Reverse DNS lookup
-    res = getnameinfo(&ctx->dest_addr, sizeof(ctx->dest_addr), ctx->dest_hostname, sizeof(ctx->dest_hostname), NULL, 0, 0);
+    res = getnameinfo((void *)&ctx->dest_addr, sizeof(ctx->dest_addr), ctx->dest_hostname, sizeof(ctx->dest_hostname), NULL, 0, 0);
     if (res != 0) {
         freeaddrinfo(dest_addr_info);
         FatalErrorEAI("getnameinfo", res);
