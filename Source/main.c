@@ -29,7 +29,8 @@ static void PrintUsage() {
     fprintf(stderr, "Usage\n");
     fprintf(stderr, "  ft_ping [options] <destination>\n\n");
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  <destination>\t\thostname or ip address\n");
+    fprintf(stderr, "  <destination>\t\tDNS name or IP address\n");
+    fprintf(stderr, "  -t<number>\t\tdefine time to live\n");
     fprintf(stderr, "  -v\t\t\tverbose output\n");
 }
 
@@ -37,24 +38,24 @@ static void HandleProgramArguments(Context *ctx, int argc, char **argv) {
     char option = 0;
     for (int i = 1; i < argc; i += 1) {
         if (argv[i][0] == '-') {
-            option = argv[i][1];
-        }
-
-        if (option == 't') {
-            ctx->ttl = atoi(argv[i]);
-        } else if (strcmp(argv[i], "-v") == 0) {
-            ctx->verbose = true;
-        } else if (strcmp(argv[i], "-?") == 0) {
-            PrintUsage();
-            exit(2);
-        } else if (argv[i][0] == '-') {
-            FatalError("Unknown option '%s'", argv[i]);
+            char *option = argv[i] + 1;
+            if (option[0] == 't') {
+                option += 1;
+                ctx->ttl = atoi(option);
+            } else if (strcmp(option, "v") == 0) {
+                ctx->verbose = true;
+            } else if (strcmp(option, "?") == 0) {
+                PrintUsage();
+                exit(2);
+            } else {
+                FatalError("Unknown option '%s'", argv[i]);
+            }
         } else {
-            ctx->dest_hostname = argv[i];
+            ctx->dest_hostname_arg = argv[i];
         }
     }
 
-    if (!ctx->dest_hostname) {
+    if (!ctx->dest_hostname_arg) {
         FatalError("Destination address required");
     }
 }
@@ -79,22 +80,40 @@ static void InitContext(Context *ctx) {
         FatalErrorErrno("setsockopt(SO_REUSEPORT)", errno);
     }
 
-    struct addrinfo *dest_addr_info = {0};
+    // Lookup hostname
+    struct addrinfo hints = {0};
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_RAW;
+    hints.ai_protocol = IPPROTO_ICMP;
 
-    int res = getaddrinfo(ctx->dest_hostname, NULL, NULL, &dest_addr_info);
+    struct addrinfo *dest_addr_info = NULL;
+    int res = getaddrinfo(ctx->dest_hostname_arg, NULL, &hints, &dest_addr_info);
     if (res != 0) {
         FatalErrorEAI("getaddrinfo", res);
     }
 
     if (dest_addr_info->ai_family != AF_INET) {
+        freeaddrinfo(dest_addr_info);
         FatalError("Expected an IPV4 address");
     }
 
     if (dest_addr_info->ai_addrlen != sizeof(ctx->dest_addr)) {
+        freeaddrinfo(dest_addr_info);
         FatalError("Expected an IPV4 address");
     }
 
+    if (!inet_ntop(AF_INET, &dest_addr_info->ai_addr, ctx->dest_addr_str, sizeof(ctx->dest_addr_str))) {
+        FatalErrorErrno("inet_ntop", errno);
+    }
+
     memcpy(&ctx->dest_addr, dest_addr_info->ai_addr, sizeof(ctx->dest_addr));
+
+    // Reverse DNS lookup
+    res = getnameinfo(&ctx->dest_addr, sizeof(ctx->dest_addr), ctx->dest_hostname, sizeof(ctx->dest_hostname), NULL, 0, 0);
+    if (res != 0) {
+        freeaddrinfo(dest_addr_info);
+        FatalErrorEAI("getnameinfo", res);
+    }
 }
 
 int main(int argc, char **argv) {

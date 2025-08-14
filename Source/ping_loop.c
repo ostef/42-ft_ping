@@ -14,7 +14,7 @@ void PingPong(Context *ctx) {
 
     printf(
         "PING %s (%s) %d(%d) bytes of data\n",
-        "localhost", "127.0.0.1",
+        ctx->dest_hostname_arg, ctx->dest_addr_str,
         (int)(sizeof(PingPacket) - sizeof(struct icmphdr)),
         (int)(sizeof(PingPacket) + sizeof(struct iphdr))
     );

@@ -47,10 +47,11 @@ int SendICMPEchoPacket(Context *ctx) {
         );
 
         if (sent < 0) {
-            if (errno == EWOULDBLOCK || errno == EAGAIN)
+            if (errno == EWOULDBLOCK || errno == EAGAIN) {
                 continue;
-            else
+            } else {
                 FatalErrorErrno("sendto", errno);
+            }
         }
 
         if (sent == 0) {
@@ -120,7 +121,7 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
         printf(
             "%d bytes from %s (%s): icmp_seq=%d ttl=%d time=%.2f ms\n",
             (int)(size - sizeof(struct iphdr)),
-            "localhost", "127.0.0.1",
+            ctx->dest_hostname, ctx->dest_addr_str,
             header->un.echo.sequence, ip_header->ttl, elapsed_ms
         );
     } break;
@@ -130,7 +131,7 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
 
         fprintf(stderr,
             "From %s: icmp_seq=%d Time to live exceeded\n",
-            "127.0.0.1",
+            ctx->dest_addr_str,
             ctx->echo_sent
         );
     } break;
@@ -140,7 +141,7 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
 
         fprintf(stderr,
             "From %s: icmp_seq=%d Destination unreachable\n",
-            "127.0.0.1",
+            ctx->dest_addr_str,
             ctx->echo_sent
         );
     } break;
@@ -150,7 +151,7 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
 
         fprintf(stderr,
             "From %s: icmp_seq=%d Source quench\n",
-            "127.0.0.1",
+            ctx->dest_addr_str,
             ctx->echo_sent
         );
         break;
@@ -160,7 +161,7 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
 
         fprintf(stderr,
             "From %s: icmp_seq=%d ICMP parameter problem\n",
-            "127.0.0.1",
+            ctx->dest_addr_str,
             ctx->echo_sent
         );
     } break;
@@ -170,7 +171,7 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
 
         fprintf(stderr,
             "From %s: icmp_seq=%d Invalid ICMP packet type (%d)\n",
-            "127.0.0.1",
+            ctx->dest_addr_str,
             ctx->echo_sent,
             header->type
         );

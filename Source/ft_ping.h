@@ -19,13 +19,15 @@
 #include <netdb.h>
 
 typedef struct {
-    char *dest_hostname;
+    char *dest_hostname_arg;
     bool verbose;
     int ttl;
     float ping_interval_in_seconds;
 
     int socket_fd;
     struct sockaddr_in dest_addr;
+    char dest_addr_str[INET_ADDRSTRLEN];
+    char dest_hostname[1024];
     int echo_sent;
     int reply_received;
     int error_num;
