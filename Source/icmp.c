@@ -100,7 +100,7 @@ int ReceiveICMPPacket(Context *ctx, void *buff, int size) {
     }
 
     struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof(struct iphdr));
-    if (hdr->type == ICMP_ECHOREPLY && ntohs(hdr->un.echo.id) == ctx->identifier && ntohs(hdr->un.echo.sequence) == ctx->echo_sent) {
+    if (hdr->type == ICMP_ECHOREPLY && ntohs(hdr->un.echo.id) == ctx->identifier && ntohs(hdr->un.echo.sequence) == ctx->echo_sent - 1) {
         ctx->reply_received += 1;
     }
 
