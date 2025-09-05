@@ -160,7 +160,7 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
     inet_ntop(AF_INET, &ip_header->saddr, received_from, sizeof(received_from));
 
     if (ip_header->saddr == ctx->dest_addr.sin_addr.s_addr) {
-        printf("%d bytes from %s (%s): ", (int)(size - sizeof(struct iphdr)), received_from, ctx->dest_hostname);
+        printf("%d bytes from %s (%s): ", (int)(size - sizeof(struct iphdr)), ctx->dest_hostname, received_from);
     } else {
         printf("%d bytes from %s: ", (int)(size - sizeof(struct iphdr)), received_from);
     }
