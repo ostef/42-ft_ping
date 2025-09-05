@@ -13,10 +13,9 @@ void PingPong(Context *ctx) {
     clock_gettime(CLOCK_MONOTONIC, &total_start_time);
 
     printf(
-        "PING %s (%s) %d(%d) bytes of data",
+        "PING %s (%s): %d data bytes",
         ctx->dest_hostname_arg, ctx->dest_addr_str,
-        (int)(sizeof(PingPacket) - sizeof(struct icmphdr)),
-        (int)(sizeof(PingPacket) + sizeof(struct iphdr))
+        (int)(sizeof(PingPacket) - sizeof(struct icmphdr))
     );
     if (ctx->verbose) {
         printf(", id 0x%04x = %u", htons(ctx->identifier), htons(ctx->identifier));
