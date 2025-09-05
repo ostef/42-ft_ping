@@ -68,12 +68,13 @@ int SendICMPEchoPacket(Context *ctx) {
 int ReceiveICMPPacket(Context *ctx, void *buff, int size) {
     int received = 0;
     while (!g_stop_ping_loop) {
-        socklen_t addrlen = sizeof(ctx->dest_addr);
+        struct sockaddr_in dest_addr = ctx->dest_addr;
+        socklen_t addrlen = sizeof(dest_addr);
         received = recvfrom(
             ctx->socket_fd,
             buff, size,
             MSG_DONTWAIT,
-            (struct sockaddr *)&ctx->dest_addr, &addrlen
+            (struct sockaddr *)&dest_addr, &addrlen
         );
 
         if (received < 0) {
