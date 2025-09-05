@@ -4,6 +4,7 @@ SRC_FILES=main.c ping_loop.c icmp.c
 OBJ_DIR=Obj
 OBJ_FILES=$(SRC_FILES:.c=.o)
 INCLUDE_DIRS=Source
+LIBS=m
 
 CC=gcc
 C_FLAGS=$(addprefix -I, $(INCLUDE_DIRS)) #-Wall -Wextra -Werror
