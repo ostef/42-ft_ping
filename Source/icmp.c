@@ -156,7 +156,14 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
 
     struct icmphdr *header = (struct icmphdr *)((char *)data + sizeof(struct iphdr));
 
-    printf("%d bytes from %s (%s): ", (int)(size - sizeof(struct iphdr)), ctx->dest_hostname, ctx->dest_addr_str);
+    char received_from[INET_ADDRSTRLEN];
+    inet_ntop(AF_INET, &ip_header->saddr, received_from, sizeof(received_from));
+
+    if (ip_header->saddr == ctx->dest_addr.sin_addr.s_addr) {
+        printf("%d bytes from %s (%s): ", (int)(size - sizeof(struct iphdr)), received_from, ctx->dest_hostname);
+    } else {
+        printf("%d bytes from %s: ", (int)(size - sizeof(struct iphdr)), received_from);
+    }
 
     switch(header->type) {
     case ICMP_ECHO: {
