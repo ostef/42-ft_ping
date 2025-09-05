@@ -22,11 +22,9 @@ static unsigned short CalculateIPv4Checksum(void *ptr, int size) {
 }
 
 int SendICMPEchoPacket(Context *ctx) {
-    ctx->echo_sent += 1;
-
     PingPacket packet = {0};
     packet.header.type = ICMP_ECHO;
-    packet.header.un.echo.id = htons(getpid());
+    packet.header.un.echo.id = htons(ctx->identifier);
     packet.header.un.echo.sequence = htons(ctx->echo_sent);
 
     for (int i = 0; i < sizeof(packet.msg) - 1; i += 1) {
@@ -62,6 +60,8 @@ int SendICMPEchoPacket(Context *ctx) {
         break;
     }
 
+    ctx->echo_sent += 1;
+
     return sent;
 }
 
@@ -82,16 +82,15 @@ int ReceiveICMPPacket(Context *ctx, void *buff, int size) {
             } else {
                 FatalErrorErrno("recvfrom", errno);
             }
-        }
-
-        if (received == 0) {
+        } else if (received == 0) {
             fprintf(stderr, "Socket closed\n");
             exit(1);
-        }
-
-        struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof(struct iphdr));
-        if (hdr->type != ICMP_ECHO) {
-            break;
+        } else {
+            struct iphdr *ip = (struct iphdr *)buff;
+            struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof(struct iphdr));
+            if (hdr->type != ICMP_ECHO) {
+                break;
+            }
         }
     }
 
@@ -100,7 +99,7 @@ int ReceiveICMPPacket(Context *ctx, void *buff, int size) {
     }
 
     struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof(struct iphdr));
-    if (hdr->type == ICMP_ECHOREPLY && ntohs(hdr->un.echo.sequence) == ctx->echo_sent) {
+    if (hdr->type == ICMP_ECHOREPLY && ntohs(hdr->un.echo.id) == ctx->identifier && ntohs(hdr->un.echo.sequence) == ctx->echo_sent) {
         ctx->reply_received += 1;
     }
 
@@ -114,7 +113,7 @@ static void DumpIPHeader(struct iphdr *header) {
     printf("IP Hdr Dump:\n");
     for (int i = 0; i < sizeof(*header); i += 2) {
         uint16_t bytes = *(uint16_t *)((uint8_t *)header + i);
-        printf(" %.4x", bytes);
+        printf(" %.4x", ntohs(bytes));
     }
     printf("\n");
     printf("Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst     Data\n");
@@ -128,8 +127,8 @@ static void DumpIPHeader(struct iphdr *header) {
     printf(" %02x ", header->ttl);
     printf(" %02x ", header->protocol);
     printf("%04x ", ntohs(header->check));
-    printf("%s ", inet_ntop(AF_INET, &header->daddr, src_addr, sizeof(src_addr)));
-    printf(" %s ", inet_ntop(AF_INET, &header->saddr, dst_addr, sizeof(dst_addr)));
+    printf("%s ", inet_ntop(AF_INET, &header->saddr, src_addr, sizeof(src_addr)));
+    printf(" %s ", inet_ntop(AF_INET, &header->daddr, dst_addr, sizeof(dst_addr)));
 
     int data_len = (header->ihl << 2) - sizeof(*header);
     uint8_t *data = (uint8_t *)header + sizeof(*header);
@@ -150,6 +149,7 @@ static void DumpICMPHeader(struct iphdr *ip, struct icmphdr *header) {
 void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
     struct iphdr *ip_header = (struct iphdr *)data;
     if (ip_header->protocol != IPPROTO_ICMP) {
+        printf("Not ICMP\n");
         return;
     }
 
@@ -158,7 +158,10 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
     printf("%d bytes from %s (%s): ", (int)(size - sizeof(struct iphdr)), ctx->dest_hostname, ctx->dest_addr_str);
 
     switch(header->type) {
-    case ICMP_ECHO: break; // Ignore our own echo packets
+    case ICMP_ECHO: {
+        printf("Echo\n");
+    } break;
+
     case ICMP_ECHOREPLY: {
         printf("icmp_seq=%d ttl=%d time=%.2f ms\n", ntohs(header->un.echo.sequence), ip_header->ttl, elapsed_ms);
     } break;
@@ -168,8 +171,12 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
 
         printf("Time to live exceeded\n");
         if (ctx->verbose) {
-            DumpIPHeader(ip_header);
-            DumpICMPHeader(ip_header, header);
+            char *packet_data = (char *)(header + 1);
+            struct iphdr *original_ip = (struct iphdr *)packet_data;
+            struct icmphdr *original_icmp = (struct icmphdr *)(original_ip + 1);
+
+            DumpIPHeader(original_ip);
+            DumpICMPHeader(original_ip, original_icmp);
         }
     } break;
 
@@ -178,8 +185,12 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
 
         printf("Destination unreachable\n");
         if (ctx->verbose) {
-            DumpIPHeader(ip_header);
-            DumpICMPHeader(ip_header, header);
+            char *packet_data = (char *)(header + 1);
+            struct iphdr *original_ip = (struct iphdr *)packet_data;
+            struct icmphdr *original_icmp = (struct icmphdr *)(original_ip + 1);
+
+            DumpIPHeader(original_ip);
+            DumpICMPHeader(original_ip, original_icmp);
         }
     } break;
 
@@ -188,8 +199,12 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
 
         printf("Source quench\n");
         if (ctx->verbose) {
-            DumpIPHeader(ip_header);
-            DumpICMPHeader(ip_header, header);
+            char *packet_data = (char *)(header + 1);
+            struct iphdr *original_ip = (struct iphdr *)packet_data;
+            struct icmphdr *original_icmp = (struct icmphdr *)(original_ip + 1);
+
+            DumpIPHeader(original_ip);
+            DumpICMPHeader(original_ip, original_icmp);
         }
     } break;
 
@@ -198,19 +213,19 @@ void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
 
         printf("ICMP parameter problem\n");
         if (ctx->verbose) {
-            DumpIPHeader(ip_header);
-            DumpICMPHeader(ip_header, header);
+            char *packet_data = (char *)(header + 1);
+            struct iphdr *original_ip = (struct iphdr *)packet_data;
+            struct icmphdr *original_icmp = (struct icmphdr *)(original_ip + 1);
+
+            DumpIPHeader(original_ip);
+            DumpICMPHeader(original_ip, original_icmp);
         }
     } break;
 
     default: {
         ctx->error_num += 1;
 
-        printf("Invalid ICMP packet type (%d)\n");
-        if (ctx->verbose) {
-            DumpIPHeader(ip_header);
-            DumpICMPHeader(ip_header, header);
-        }
+        printf("Invalid ICMP packet type (%04x)\n", header->type);
     } break;
 
     // Not errors

@@ -128,6 +128,7 @@ int main(int argc, char **argv) {
     Context ctx = {0};
     ctx.ttl = 64;
     ctx.ping_interval_in_seconds = 1;
+    ctx.identifier = getpid();
 
     signal(SIGINT, IntHandler);
 

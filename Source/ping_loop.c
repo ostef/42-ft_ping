@@ -13,11 +13,15 @@ void PingPong(Context *ctx) {
     clock_gettime(CLOCK_MONOTONIC, &total_start_time);
 
     printf(
-        "PING %s (%s) %d(%d) bytes of data\n",
+        "PING %s (%s) %d(%d) bytes of data",
         ctx->dest_hostname_arg, ctx->dest_addr_str,
         (int)(sizeof(PingPacket) - sizeof(struct icmphdr)),
         (int)(sizeof(PingPacket) + sizeof(struct iphdr))
     );
+    if (ctx->verbose) {
+        printf(", id 0x%04x = %u", htons(ctx->identifier), htons(ctx->identifier));
+    }
+    printf("\n");
 
     while (!g_stop_ping_loop) {
         struct timespec start_time = {0};
@@ -41,6 +45,8 @@ void PingPong(Context *ctx) {
                 + (end_time.tv_nsec - start_time.tv_nsec) / 1000000.0;
 
             PrintICMPPacket(ctx, readback_buffer, received, elapsed_ms);
+
+            struct icmphdr *hdr = (struct icmphdr *)(readback_buffer + sizeof(struct iphdr));
         }
 
         usleep((int)(ctx->ping_interval_in_seconds * 1000000));

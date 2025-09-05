@@ -24,6 +24,7 @@ typedef struct {
     int ttl;
     float ping_interval_in_seconds;
 
+    uint16_t identifier;
     int socket_fd;
     struct sockaddr_in dest_addr;
     char dest_addr_str[INET_ADDRSTRLEN];
