@@ -50,6 +50,8 @@ static void HandleProgramArguments(Context *ctx, int argc, char **argv) {
             } else {
                 FatalError("Unknown option '%s'", argv[i]);
             }
+        } else if (ctx->dest_hostname_arg) {
+            FatalError("Only one destination address should be provided");
         } else {
             ctx->dest_hostname_arg = argv[i];
         }
@@ -118,6 +120,10 @@ static void InitContext(Context *ctx) {
     freeaddrinfo(dest_addr_info);
 }
 
+static void DestroyContext(Context *ctx) {
+    close(ctx->socket_fd);
+}
+
 int main(int argc, char **argv) {
     Context ctx = {0};
     ctx.ttl = 64;
@@ -128,4 +134,5 @@ int main(int argc, char **argv) {
     HandleProgramArguments(&ctx, argc, argv);
     InitContext(&ctx);
     PingPong(&ctx);
+    DestroyContext(&ctx);
 }
