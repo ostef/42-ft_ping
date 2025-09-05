@@ -104,11 +104,11 @@ static void InitContext(Context *ctx) {
         FatalError("Expected an IPV4 address");
     }
 
-    if (!inet_ntop(AF_INET, &dest_addr_info->ai_addr, ctx->dest_addr_str, sizeof(ctx->dest_addr_str))) {
+    memcpy(&ctx->dest_addr, dest_addr_info->ai_addr, sizeof(ctx->dest_addr));
+
+    if (!inet_ntop(AF_INET, &ctx->dest_addr.sin_addr, ctx->dest_addr_str, sizeof(ctx->dest_addr_str))) {
         FatalErrorErrno("inet_ntop", errno);
     }
-
-    memcpy(&ctx->dest_addr, dest_addr_info->ai_addr, sizeof(ctx->dest_addr));
 
     // Reverse DNS lookup
     res = getnameinfo((void *)&ctx->dest_addr, sizeof(ctx->dest_addr), ctx->dest_hostname, sizeof(ctx->dest_hostname), NULL, 0, 0);
