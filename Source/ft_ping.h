@@ -34,7 +34,6 @@ typedef struct {
 } Context;
 
 #define Ping_Packet_Size 64
-#define Random_Packet_Loss_Chance 0.0
 
 extern bool g_stop_ping_loop;
 

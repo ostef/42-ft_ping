@@ -26,8 +26,8 @@ int SendICMPEchoPacket(Context *ctx) {
 
     PingPacket packet = {0};
     packet.header.type = ICMP_ECHO;
-    packet.header.un.echo.id = getpid();
-    packet.header.un.echo.sequence = ctx->echo_sent;
+    packet.header.un.echo.id = htons(getpid());
+    packet.header.un.echo.sequence = htons(ctx->echo_sent);
 
     for (int i = 0; i < sizeof(packet.msg) - 1; i += 1) {
         packet.msg[i] = '0' + i;
@@ -91,11 +91,6 @@ int ReceiveICMPPacket(Context *ctx, void *buff, int size) {
 
         struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof(struct iphdr));
         if (hdr->type != ICMP_ECHO) {
-            // Simulate packet loss
-            if (rand() < RAND_MAX * Random_Packet_Loss_Chance) {
-                return 0;
-            }
-
             break;
         }
     }
@@ -105,76 +100,117 @@ int ReceiveICMPPacket(Context *ctx, void *buff, int size) {
     }
 
     struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof(struct iphdr));
-    if (hdr->type == ICMP_ECHOREPLY && hdr->un.echo.sequence == ctx->echo_sent) {
+    if (hdr->type == ICMP_ECHOREPLY && ntohs(hdr->un.echo.sequence) == ctx->echo_sent) {
         ctx->reply_received += 1;
     }
 
     return received;
 }
 
+static void DumpIPHeader(struct iphdr *header) {
+    char src_addr[INET_ADDRSTRLEN];
+    char dst_addr[INET_ADDRSTRLEN];
+
+    printf("IP Hdr Dump:\n");
+    for (int i = 0; i < sizeof(*header); i += 2) {
+        uint16_t bytes = *(uint16_t *)((uint8_t *)header + i);
+        printf(" %.4x", bytes);
+    }
+    printf("\n");
+    printf("Vr HL TOS  Len   ID Flg  off TTL Pro  cks      Src      Dst     Data\n");
+    printf(" %1x ", header->version);
+    printf(" %1x ", header->ihl);
+    printf(" %02x ", header->tos);
+    printf("%04x ", ntohs(header->tot_len));
+    printf("%04x ", ntohs(header->id));
+    printf("  %1x ", (ntohs(header->frag_off) & 0xe000) >> 13);
+    printf("%04x ", ntohs(header->frag_off) & 0x1fff);
+    printf(" %02x ", header->ttl);
+    printf(" %02x ", header->protocol);
+    printf("%04x ", ntohs(header->check));
+    printf("%s ", inet_ntop(AF_INET, &header->daddr, src_addr, sizeof(src_addr)));
+    printf(" %s ", inet_ntop(AF_INET, &header->saddr, dst_addr, sizeof(dst_addr)));
+
+    int data_len = (header->ihl << 2) - sizeof(*header);
+    uint8_t *data = (uint8_t *)header + sizeof(*header);
+    for (int i = 0; i < data_len; i += 1) {
+        printf("%02x", data[i]);
+    }
+    printf("\n");
+}
+
+static void DumpICMPHeader(struct iphdr *ip, struct icmphdr *header) {
+    printf("ICMP: type %u, code %u, size %u", header->type, header->code, ntohs(ip->tot_len) - (ip->ihl << 2));
+    if (header->type == ICMP_ECHOREPLY || header->type == ICMP_ECHO) {
+        printf(", id 0x%04x, seq 0x%04x", header->un.echo.id, ntohs(header->un.echo.sequence));
+    }
+    printf("\n");
+}
+
 void PrintICMPPacket(Context *ctx, void *data, int size, double elapsed_ms) {
     struct iphdr *ip_header = (struct iphdr *)data;
+    if (ip_header->protocol != IPPROTO_ICMP) {
+        return;
+    }
+
     struct icmphdr *header = (struct icmphdr *)((char *)data + sizeof(struct iphdr));
+
+    printf("%d bytes from %s (%s): ", (int)(size - sizeof(struct iphdr)), ctx->dest_hostname, ctx->dest_addr_str);
+
     switch(header->type) {
     case ICMP_ECHO: break; // Ignore our own echo packets
     case ICMP_ECHOREPLY: {
-        printf(
-            "%d bytes from %s (%s): icmp_seq=%d ttl=%d time=%.2f ms\n",
-            (int)(size - sizeof(struct iphdr)),
-            ctx->dest_hostname, ctx->dest_addr_str,
-            header->un.echo.sequence, ip_header->ttl, elapsed_ms
-        );
+        printf("icmp_seq=%d ttl=%d time=%.2f ms\n", ntohs(header->un.echo.sequence), ip_header->ttl, elapsed_ms);
     } break;
 
     case ICMP_TIME_EXCEEDED: {
         ctx->error_num += 1;
 
-        fprintf(stderr,
-            "From %s: icmp_seq=%d Time to live exceeded\n",
-            ctx->dest_addr_str,
-            ctx->echo_sent
-        );
+        printf("Time to live exceeded\n");
+        if (ctx->verbose) {
+            DumpIPHeader(ip_header);
+            DumpICMPHeader(ip_header, header);
+        }
     } break;
 
     case ICMP_DEST_UNREACH: {
         ctx->error_num += 1;
 
-        fprintf(stderr,
-            "From %s: icmp_seq=%d Destination unreachable\n",
-            ctx->dest_addr_str,
-            ctx->echo_sent
-        );
+        printf("Destination unreachable\n");
+        if (ctx->verbose) {
+            DumpIPHeader(ip_header);
+            DumpICMPHeader(ip_header, header);
+        }
     } break;
 
-    case ICMP_SOURCE_QUENCH:
+    case ICMP_SOURCE_QUENCH: {
         ctx->error_num += 1;
 
-        fprintf(stderr,
-            "From %s: icmp_seq=%d Source quench\n",
-            ctx->dest_addr_str,
-            ctx->echo_sent
-        );
-        break;
+        printf("Source quench\n");
+        if (ctx->verbose) {
+            DumpIPHeader(ip_header);
+            DumpICMPHeader(ip_header, header);
+        }
+    } break;
 
     case ICMP_PARAMETERPROB: {
         ctx->error_num += 1;
 
-        fprintf(stderr,
-            "From %s: icmp_seq=%d ICMP parameter problem\n",
-            ctx->dest_addr_str,
-            ctx->echo_sent
-        );
+        printf("ICMP parameter problem\n");
+        if (ctx->verbose) {
+            DumpIPHeader(ip_header);
+            DumpICMPHeader(ip_header, header);
+        }
     } break;
 
     default: {
         ctx->error_num += 1;
 
-        fprintf(stderr,
-            "From %s: icmp_seq=%d Invalid ICMP packet type (%d)\n",
-            ctx->dest_addr_str,
-            ctx->echo_sent,
-            header->type
-        );
+        printf("Invalid ICMP packet type (%d)\n");
+        if (ctx->verbose) {
+            DumpIPHeader(ip_header);
+            DumpICMPHeader(ip_header, header);
+        }
     } break;
 
     // Not errors
