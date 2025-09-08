@@ -101,6 +101,16 @@ int ReceiveICMPPacket(Context *ctx, void *buff, int size) {
                 continue;
             }
 
+            if (hdr->type == ICMP_TIME_EXCEEDED || hdr->type == ICMP_DEST_UNREACH || hdr->type == ICMP_SOURCE_QUENCH || hdr->type == ICMP_PARAMETERPROB) {
+                char *packet_data = (char *)(hdr + 1);
+                struct iphdr *original_ip = (struct iphdr *)packet_data;
+                struct icmphdr *original_icmp = (struct icmphdr *)(original_ip + 1);
+
+                if (original_icmp->type != ICMP_ECHO || ntohs(original_icmp->un.echo.id) != ctx->identifier) {
+                    continue;
+                }
+            }
+
             break;
         }
     }
