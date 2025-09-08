@@ -30,18 +30,26 @@ static void PrintUsage() {
     fprintf(stderr, "  ft_ping [options] <destination>\n\n");
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "  <destination>\t\tDNS name or IP address\n");
-    fprintf(stderr, "  -t<number>\t\tdefine time to live\n");
+    fprintf(stderr, "  --ttl <number>\t\tdefine time to live\n");
     fprintf(stderr, "  -v\t\t\tverbose output\n");
 }
 
 static void HandleProgramArguments(Context *ctx, int argc, char **argv) {
-    char option = 0;
+    bool next_is_ttl = false;
     for (int i = 1; i < argc; i += 1) {
-        if (argv[i][0] == '-') {
+        if (next_is_ttl) {
+            char *end = argv[i] + strlen(argv[i]);
+
+            ctx->ttl = (int)strtol(argv[i], &end, 10);
+            if (end != argv[i] + strlen(argv[i])) {
+                FatalError("Invalid argument for option --ttl (expected an integer)");
+            }
+
+            next_is_ttl = false;
+        } else if (argv[i][0] == '-') {
             char *option = argv[i] + 1;
-            if (option[0] == 't') {
-                option += 1;
-                ctx->ttl = atoi(option);
+            if (strcmp(option, "-ttl") == 0) {
+                next_is_ttl = true;
             } else if (strcmp(option, "v") == 0) {
                 ctx->verbose = true;
             } else if (strcmp(option, "?") == 0) {
@@ -55,6 +63,10 @@ static void HandleProgramArguments(Context *ctx, int argc, char **argv) {
         } else {
             ctx->dest_hostname_arg = argv[i];
         }
+    }
+
+    if (next_is_ttl) {
+        FatalError("Missing argument for --ttl option");
     }
 
     if (!ctx->dest_hostname_arg) {
