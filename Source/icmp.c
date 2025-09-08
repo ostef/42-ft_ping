@@ -88,10 +88,20 @@ int ReceiveICMPPacket(Context *ctx, void *buff, int size) {
             exit(1);
         } else {
             struct iphdr *ip = (struct iphdr *)buff;
-            struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof(struct iphdr));
-            if (hdr->type != ICMP_ECHO) {
-                break;
+            if (ip->protocol != IPPROTO_ICMP) {
+                continue;
             }
+
+            struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof(struct iphdr));
+            if (hdr->type == ICMP_ECHO) {
+                continue;
+            }
+
+            if (hdr->type == ICMP_ECHOREPLY && ntohs(hdr->un.echo.id) != ctx->identifier) {
+                continue;
+            }
+
+            break;
         }
     }
 
@@ -100,7 +110,7 @@ int ReceiveICMPPacket(Context *ctx, void *buff, int size) {
     }
 
     struct icmphdr *hdr = (struct icmphdr *)((char *)buff + sizeof(struct iphdr));
-    if (hdr->type == ICMP_ECHOREPLY && ntohs(hdr->un.echo.id) == ctx->identifier && ntohs(hdr->un.echo.sequence) == ctx->echo_sent - 1) {
+    if (hdr->type == ICMP_ECHOREPLY) {
         ctx->reply_received += 1;
     }
 
